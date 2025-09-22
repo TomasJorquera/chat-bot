@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, ArrowLeft, RotateCcw, FileText, Loader } from 'lucide-react';
 import { Message } from '../../types';
+import { API_URL } from '../../config.ts';
+
 
 interface ChatInterfaceProps {
   character: 'Teo' | 'Josefina';
@@ -50,40 +52,44 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ character, onBack }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const simulateCharacterResponse = async (userMessage: string) => {
+  const getCharacterResponse = async (userMessage: string) => {
     setIsTyping(true);
-    
-    // Simulate thinking time
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-    
-    const responses = {
-      Teo: [
-        '¡Eso es interesante! ¿Me puedes explicar con un ejemplo?',
-        'Me gusta cuando me ayudas a entender. ¿Hay alguna imagen que me puedas describir?',
-        'Creo que lo entiendo mejor ahora. ¿Podemos practicar juntos?',
-        'A veces me confundo, pero contigo es más fácil aprender.',
-        '¡Genial! Me gusta aprender cosas nuevas. ¿Qué más puedes enseñarme?'
-      ],
-      Josefina: [
-        'Eso tiene sentido. ¿Podrías darme un ejemplo de la vida real?',
-        'Me gusta como lo explicas. ¿Hay algo parecido en música o deportes?',
-        'Creo que ya lo entiendo mejor. ¿Podemos ver otro ejemplo?',
-        'Gracias por tu paciencia. A veces necesito tiempo para procesar.',
-        '¡Interesante! ¿Cómo se relaciona esto con lo que me gusta?'
-      ]
-    };
 
-    const randomResponse = responses[character][Math.floor(Math.random() * responses[character].length)];
-    
-    const response: Message = {
-      id: Date.now().toString(),
-      content: randomResponse,
-      sender: 'character',
-      timestamp: new Date()
-    };
+    try {
+      const res = await fetch(`${API_URL}/chat`, { // API_URL ahora es '/api'
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: userMessage }),
+      });
 
-    setMessages(prev => [...prev, response]);
-    setIsTyping(false);
+      if (!res.ok) {
+        throw new Error('Error al conectar con el servidor.');
+      }
+
+      const data = await res.json();
+
+      const response: Message = {
+        id: Date.now().toString(),
+        content: data.response,
+        sender: 'character',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, response]);
+
+    } catch (error) {
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        content: 'Hubo un error al conectar con el bot. Por favor, intenta de nuevo más tarde.',
+        sender: 'character',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      console.error("Error fetching character response:", error);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -99,7 +105,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ character, onBack }) => {
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     
-    await simulateCharacterResponse(inputValue);
+    await getCharacterResponse(inputValue);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -110,7 +116,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ character, onBack }) => {
   };
 
   const handleRestart = () => {
-    setMessages([]);
     const greeting: Message = {
       id: Date.now().toString(),
       content: characterInfo[character].greeting,
@@ -130,7 +135,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ character, onBack }) => {
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-[#E3F2FD] via-[#BBDEFB] to-[#90CAF9]">
       {/* Header */}
-      <div className="bg-white/90 backdrop-blur-sm border-b border-blue-200 px-4 py-4 mt-16">
+      <div className="bg-white/90 backdrop-blur-sm border-b border-blue-200 px-4 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
@@ -188,7 +193,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ character, onBack }) => {
                 <span className={`text-xs mt-1 block ${
                   message.sender === 'user' ? 'text-blue-100' : 'text-[#37474F]'
                 }`}>
-                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {message.timestamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}
                 </span>
               </div>
             </div>

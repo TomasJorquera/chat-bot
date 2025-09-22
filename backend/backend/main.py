@@ -2,12 +2,29 @@ import os
 from datetime import datetime
 from typing import List
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text, Column, Integer, String, DateTime
 from sqlalchemy.orm import declarative_base, Session
 
 app = FastAPI()
+
+# --- Orígenes permitidos para CORS ---
+# En producción, deberías limitar esto a tu dominio de frontend.
+# Ejemplo: origins = ["http://tu-dominio.com", "https://tu-dominio.com"]
+origins = [
+    "*" # Temporalmente para el despliegue inicial, luego lo cambiaremos por el dominio real.
+]
+
+# --- CORS ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos los métodos (GET, POST, etc.)
+    allow_headers=["*"],  # Permite todos los headers
+)
 
 # --- DB ---
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://admin:admin@db:5432/chatbotdb")
@@ -49,20 +66,26 @@ def test_db():
 # --- Chat (mock) + persistencia ---
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
-    # 1) guardamos el mensaje del usuario
-    with Session(engine) as session:
-        session.add(Message(role="user", content=req.message))
-        session.commit()
+    try:
+        # 1) guardamos el mensaje del usuario
+        with Session(engine) as session:
+            user_message = Message(role="user", content=req.message)
+            session.add(user_message)
+            session.commit()
 
-    # 2) generamos respuesta (mock, porque no hay API key)
-    reply = f"Recibí tu mensaje: '{req.message}' (modo mock 🤖)"
+        # 2) generamos respuesta (mock, porque no hay API key)
+        reply = f"Recibí tu mensaje: '{req.message}' (modo mock 🤖)"
 
-    # 3) guardamos la respuesta del asistente
-    with Session(engine) as session:
-        session.add(Message(role="assistant", content=reply))
-        session.commit()
+        # 3) guardamos la respuesta del asistente
+        with Session(engine) as session:
+            assistant_message = Message(role="assistant", content=reply)
+            session.add(assistant_message)
+            session.commit()
 
-    return ChatResponse(response=reply)
+        return ChatResponse(response=reply)
+    except Exception as e:
+        # Log the exception e
+        raise HTTPException(status_code=500, detail="Error al procesar el mensaje en el chat.")
 
 
 # --- Historial ---
