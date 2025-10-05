@@ -13,9 +13,7 @@ app = FastAPI()
 # --- Orígenes permitidos para CORS ---
 # En producción, deberías limitar esto a tu dominio de frontend.
 # Ejemplo: origins = ["http://tu-dominio.com", "https://tu-dominio.com"]
-origins = [
-    "*" # Temporalmente para el despliegue inicial, luego lo cambiaremos por el dominio real.
-]
+origins = os.getenv("CORS_ORIGINS", "*").split(",")
 
 # --- CORS ---
 app.add_middleware(
