@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Header from './components/Layout/Header';
 import HomePage from './components/HomePage/HomePage';
 import StudentDashboard from './components/StudentDashboard/StudentDashboard';
 import TeacherDashboard from './components/TeacherDashboard/TeacherDashboard';
+import ChatInterface from './components/Chat/ChatInterface';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
+  const [selectedCharacter, setSelectedCharacter] = useState<'Teo' | 'Josefina' | null>(null);
 
   if (loading) {
     return (
@@ -25,10 +27,25 @@ const AppContent: React.FC = () => {
     return <HomePage />;
   }
 
+  if (selectedCharacter) {
+    return (
+      <ChatInterface
+        character={selectedCharacter}
+        onBack={() => setSelectedCharacter(null)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <Header />
-      {user.type === 'student' ? <StudentDashboard /> : <TeacherDashboard />}
+      {user.type === 'student' ? (
+        <StudentDashboard
+          onCharacterSelect={(character) => setSelectedCharacter(character)}
+        />
+      ) : (
+        <TeacherDashboard />
+      )}
     </div>
   );
 };

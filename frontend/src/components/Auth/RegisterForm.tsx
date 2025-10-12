@@ -3,11 +3,11 @@ import { User, Mail, Lock, UserPlus, AlertCircle, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface RegisterFormProps {
-  onSwitchToLogin: () => void;
+  onSwitchMode: () => void;
   onClose: () => void;
 }
 
-const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onClose }) => {
+const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchMode, onClose }) => {
   const [formData, setFormData] = useState({
     name: '',
     lastName: '',
@@ -208,7 +208,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, onClose })
         <div className="text-center">
           <button
             type="button"
-            onClick={onSwitchToLogin}
+            onClick={onSwitchMode}
             className="text-[#1E88E5] hover:text-blue-700 text-sm font-medium transition-colors"
           >
             ¿Ya tienes cuenta? Inicia sesión aquí
