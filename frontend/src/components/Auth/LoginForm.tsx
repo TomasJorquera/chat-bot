@@ -3,11 +3,11 @@ import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface LoginFormProps {
-  onSwitchToRegister: () => void;
+  onSwitchMode: () => void;
   onClose: () => void;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onClose }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ onSwitchMode, onClose }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -95,7 +95,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, onClose }) =>
         <div className="text-center">
           <button
             type="button"
-            onClick={onSwitchToRegister}
+            onClick={onSwitchMode}
             className="text-[#1E88E5] hover:text-blue-700 text-sm font-medium transition-colors"
           >
             ¿No tienes cuenta? Regístrate aquí

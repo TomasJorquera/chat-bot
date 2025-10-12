@@ -1,19 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BookOpen, Users } from 'lucide-react';
 import CharacterCard from '../CharacterCard/CharacterCard';
-import ChatInterface from '../Chat/ChatInterface';
 
-const StudentDashboard: React.FC = () => {
-  const [selectedCharacter, setSelectedCharacter] = useState<'Teo' | 'Josefina' | null>(null);
+interface StudentDashboardProps {
+  onCharacterSelect: (character: 'Teo' | 'Josefina') => void;
+}
 
-  if (selectedCharacter) {
-    return (
-      <ChatInterface
-        character={selectedCharacter}
-        onBack={() => setSelectedCharacter(null)}
-      />
-    );
-  }
+const StudentDashboard: React.FC<StudentDashboardProps> = ({ onCharacterSelect }) => {
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E3F2FD] via-[#BBDEFB] to-[#90CAF9] pt-20 pb-8">
@@ -48,7 +42,8 @@ const StudentDashboard: React.FC = () => {
               grade="4º Básico"
               description="Teo tiene dificultades en lectura y escritura, y a veces evita las tareas de lenguaje. Responde mejor cuando recibe apoyo visual y ejemplos concretos."
               interests={['Dibujos', 'Colores', 'Juegos visuales']}
-              onClick={() => setSelectedCharacter('Teo')}
+              // 4. Llama a la función del componente padre al hacer clic
+              onClick={() => onCharacterSelect('Teo')}
             />
 
             <CharacterCard
@@ -57,7 +52,7 @@ const StudentDashboard: React.FC = () => {
               grade="1º Medio"
               description="Josefina tiene dificultades intelectuales leves y es tímida. Aprende mejor con ejemplos concretos y disfruta de actividades relacionadas con sus intereses."
               interests={['Música', 'Fútbol', 'Ejemplos prácticos']}
-              onClick={() => setSelectedCharacter('Josefina')}
+              onClick={() => onCharacterSelect('Josefina')}
             />
           </div>
         </div>
