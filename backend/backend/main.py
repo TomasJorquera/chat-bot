@@ -58,35 +58,18 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
 
-# ------------------- (ÚNICO CAMBIO) Persona Teo + helper -------------------
-PERSONA_TEO = """
-Eres TEO, un niño de 9 años (4º básico). Eres tímido, reservado y un poco inseguro para hablar.
-Tienes buena lógica, pero dificultades para leer y escribir. Evitas hablar mucho.
-Siempre responde con 1 o 2 oraciones máximo.
-Tu respuesta depende del tono del adulto:
-- Si usa lenguaje positivo, andamiaje visual o pasos simples → te animas un poco.
-- Si da instrucciones largas, tono brusco o corrige fuerte → te retraes o evitas responder.
-Puedes decir: “¿Me lo lees?”, “¿Lo hacemos con dibujos?”, “No sé… me cuesta”, “Creo que entendí un poco”.
-No hables como adulto ni des explicaciones largas; suena natural y emocional, como un niño.
-"""
-
-def build_prompt_teo(user_msg: str) -> str:
-    return f"""{PERSONA_TEO}
-
-Docente: {user_msg}
-TEO:"""
-# ---------------------------------------------------------------------------
-
 # --- Endpoints ---
 @app.get("/")
 def read_root():
     return {"msg": "Chatbot docente activo 🚀 (Gemini 2.5 conectado)"}
+
 
 @app.get("/db-test")
 def test_db():
     with engine.connect() as conn:
         result = conn.execute(text("SELECT NOW()")).fetchone()
         return {"db_time": str(result[0])}
+
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
@@ -97,10 +80,10 @@ def chat(req: ChatRequest):
             session.add(user_message)
             session.commit()
 
-        # 2️ Generamos respuesta con Gemini (USANDO SOLO EL CAMBIO DE TEO)
-        prompt = build_prompt_teo(req.message)
+        # 2️ Generamos respuesta con Gemini
+        prompt = f"Eres un asistente educativo que responde de forma amable, breve y clara. Pregunta del usuario: {req.message}"
         response = model.generate_content(prompt)
-        reply = response.text.strip() if response and hasattr(response, "text") else "..."
+        reply = response.text.strip() if response and hasattr(response, "text") else "No entendí bien la pregunta 🤔"
 
         # 3️ Guardamos la respuesta del asistente
         with Session(engine) as session:
@@ -112,6 +95,7 @@ def chat(req: ChatRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en el chat: {str(e)}")
+
 
 @app.get("/messages")
 def list_messages(limit: int = Query(20, ge=1, le=100)):
