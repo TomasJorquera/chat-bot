@@ -11,19 +11,28 @@ from sqlalchemy.orm import declarative_base, Session
 # --- Gemini ---
 import google.generativeai as genai
 
-# Aqui esta la API key de Gemini
-GEMINI_API_KEY = "AIzaSyAmWH-etR5MbsynbtFktgY-t31buduJhcI"
+# ✅ CLAVE PEGADA (temporal). Sustituye por tu key válida:
+GEMINI_API_KEY = "AIzaSyBfXvOOqYmVEC5NvFpbsZKsp6YcuN_RKu0"
 
-# Configuración del modelo Gemini
+# Config y modelo
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-2.5-flash")  # ← modelo nuevo y recomendado
+PRIMARY_MODEL = "gemini-2.5-flash"
+FALLBACK_MODEL = "gemini-1.5-flash"
+
+def get_model():
+    # Si 2.5 no está habilitado en tu cuenta, cae a 1.5 automáticamente
+    try:
+        return genai.GenerativeModel(PRIMARY_MODEL)
+    except Exception:
+        return genai.GenerativeModel(FALLBACK_MODEL)
+
+model = get_model()
 
 # --- App FastAPI ---
 app = FastAPI()
 
 # --- CORS ---
 origins = os.getenv("CORS_ORIGINS", "*").split(",")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -44,11 +53,11 @@ Base = declarative_base()
 class Message(Base):
     __tablename__ = "messages"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    role = Column(String(20), nullable=False)  # "user" | "assistant"
+    role = Column(String(20), nullable=False)  # "user" | "assistant" | "error"
     content = Column(String(4000), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-# Crea la tabla si no existe
+# crea la tabla si no existe
 Base.metadata.create_all(engine)
 
 # --- Schemas ---
@@ -58,11 +67,13 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
 
-# --- Endpoints ---
+MAX_STORE = 3900  # margen para no pasar 4000 chars en DB
+MAX_REPLY = 3000  # por si el modelo devuelve mucho texto
+
+# --- Endpoints básicos ---
 @app.get("/")
 def read_root():
-    return {"msg": "Chatbot docente activo 🚀 (Gemini 2.5 conectado)"}
-
+    return {"msg": "Chatbot docente activo 🚀 (Gemini conectado)"}
 
 @app.get("/db-test")
 def test_db():
@@ -70,32 +81,47 @@ def test_db():
         result = conn.execute(text("SELECT NOW()")).fetchone()
         return {"db_time": str(result[0])}
 
-
+# --- Chat + persistencia ---
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     try:
-        # 1️ Guardamos el mensaje del usuario
+        # 1) Guarda mensaje del usuario
         with Session(engine) as session:
-            user_message = Message(role="user", content=req.message)
-            session.add(user_message)
+            session.add(Message(role="user", content=req.message[:MAX_STORE]))
             session.commit()
 
-        # 2️ Generamos respuesta con Gemini
-        prompt = f"Eres un asistente educativo que responde de forma amable, breve y clara. Pregunta del usuario: {req.message}"
-        response = model.generate_content(prompt)
-        reply = response.text.strip() if response and hasattr(response, "text") else "No entendí bien la pregunta 🤔"
+        # 2) Llama a Gemini (robusto y con fallback)
+        prompt = (
+            f"Eres un asistente educativo que responde de forma amable, breve y clara. "
+            f"Pregunta del usuario: {req.message}"
+        )
+        reply = "…"  # fallback breve
 
-        # 3️ Guardamos la respuesta del asistente
+        # intento con el modelo actual
+        try:
+            r = model.generate_content(prompt)
+            text_out = (r.text or "").strip() if hasattr(r, "text") else ""
+            if not text_out:
+                # reintento con fallback model
+                r2 = genai.GenerativeModel(FALLBACK_MODEL).generate_content(prompt)
+                text_out = (r2.text or "").strip() if hasattr(r2, "text") else ""
+            if text_out:
+                reply = text_out[:MAX_REPLY]
+        except Exception as err:
+            # loguea error pero no rompas la UX
+            with Session(engine) as session:
+                session.add(Message(role="error", content=f"Gemini error: {str(err)[:MAX_STORE]}"))
+                session.commit()
+
+        # 3) Guarda respuesta del asistente
         with Session(engine) as session:
-            assistant_message = Message(role="assistant", content=reply)
-            session.add(assistant_message)
+            session.add(Message(role="assistant", content=reply[:MAX_STORE]))
             session.commit()
 
-        return ChatResponse(response=reply)
+        return ChatResponse(response=reply[:MAX_REPLY])
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en el chat: {str(e)}")
-
 
 @app.get("/messages")
 def list_messages(limit: int = Query(20, ge=1, le=100)):
