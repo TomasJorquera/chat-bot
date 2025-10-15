@@ -12,7 +12,7 @@ from sqlalchemy.orm import declarative_base, Session
 import google.generativeai as genai
 
 # Aqui esta la API key de Gemini
-GEMINI_API_KEY = "AIzaSyC_Cc0CatwLXuXhn-gd0nv9yQyR19xugyU"
+GEMINI_API_KEY = "AIzaSyAmWH-etR5MbsynbtFktgY-t31buduJhcI"
 
 # Configuración del modelo Gemini
 genai.configure(api_key=GEMINI_API_KEY)
